@@ -1,45 +1,40 @@
-import cv2
-import mediapipe as mp
+'''This script uses OpenCV's haarcascade (face and eye cascade) to detect face
+and eyes in a video feed which can be inputted through a webcam.'''
 
-# Initialize mediapipe face detection and drawing utilities
-mp_face_detection = mp.solutions.face_detection
-mp_drawing = mp.solutions.drawing_utils
+#Import necessary libraries
+import cv2 as cv
+import numpy as np
 
-# Set up the video capture
-video_capture = cv2.VideoCapture(0)
+#Load face cascade and hair cascade from haarcascades folder
+face_cascade = cv.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+eye_cascade = cv.CascadeClassifier("haarcascades/haarcascade_eye.xml")
 
-# Initialize face detector from Mediapipe
-with mp_face_detection.FaceDetection(min_detection_confidence=0.5) as face_detection:  # Increase confidence
-    while True:
-        ret, frame = video_capture.read()
-        if not ret:
-            break
+#Capture video from webcam
+video_capture = cv.VideoCapture(0)
 
-        # Flip the frame horizontally for a later selfie-view display
-        frame = cv2.flip(frame, 1)
+#Read all frames from webcam
+while True:
+    ret, frame = video_capture.read()
+    frame = cv.flip(frame,1) #Flip so that video feed is not flipped, and appears mirror like.
+    gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-        # Convert the frame to RGB (Mediapipe works with RGB images)
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
-        # Process the frame and get face detections
-        results = face_detection.process(rgb_frame)
+    for (x,y,w,h) in faces:
+        cv.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
+        roi_gray = gray[y:y+h, x:x+w]
+        roi_color = frame[y:y+h, x:x+w]
 
-        # Draw face detections
-        if results.detections:
-            for detection in results.detections:
-                bboxC = detection.location_data.relative_bounding_box
-                ih, iw, _ = frame.shape
-                x, y, w, h = int(bboxC.xmin * iw), int(bboxC.ymin * ih), \
-                              int(bboxC.width * iw), int(bboxC.height * ih)
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        
-        # Show the video feed with face detection
-        cv2.imshow('Video', frame)
+        eyes = eye_cascade.detectMultiScale(roi_gray)
 
-        # Press 'q' to quit
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        for (ex,ey,ew,eh) in eyes:
+            cv.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
 
-# Release the video capture and close windows
+    cv.imshow('Video', frame)
+
+    if(cv.waitKey(1) & 0xFF == ord('q')):
+        break
+
+#Finally when video capture is over, release the video capture and destroyAllWindows
 video_capture.release()
-cv2.destroyAllWindows()
+cv.destroyAllWindows()

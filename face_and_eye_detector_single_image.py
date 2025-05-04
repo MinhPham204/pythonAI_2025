@@ -1,48 +1,36 @@
+'''This script uses OpenCV's haarcascade (face and eye cascade) to detect face
+and eyes in a given input image.'''
+
+#Import necessary libraries
 import cv2 as cv
 import numpy as np
-import mediapipe as mp
 
-# Initialize Mediapipe Face Mesh
-mp_face_mesh = mp.solutions.face_mesh
-mp_drawing = mp.solutions.drawing_utils
+#Load face cascade and hair cascade from haarcascades folder
+face_cascade = cv.CascadeClassifier("haarcascades/haarcascade_frontalface_default.xml")
+eye_cascade = cv.CascadeClassifier("haarcascades/haarcascade_eye.xml")
 
-# Read image
-img = cv.imread('images/testface.jpg')
+#Read image in img and convert it to grayscale and store in gray.
+#Image is converted to grayscale, as face cascade doesn't require to operate on coloured images.
+img = cv.imread('images/test.jpeg')
+gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
-# Convert image to RGB (Mediapipe works with RGB images)
-rgb_img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+#Detect all faces in image.
+faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
-# Initialize Face Mesh
-with mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
-    # Process the image to get face landmarks
-    results = face_mesh.process(rgb_img)
+#Draw a rectangle over the face, and detect eyes in faces
+for (x,y,w,h) in faces:
+    cv.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
 
-    # Draw face landmarks if they are found
-    if results.multi_face_landmarks:
-        for face_landmarks in results.multi_face_landmarks:
-            # Draw landmarks on the face
-            mp_drawing.draw_landmarks(img, face_landmarks, mp_face_mesh.FACEMESH_TESSELATION, 
-                                      mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1),
-                                      mp_drawing.DrawingSpec(color=(0, 0, 255), thickness=1, circle_radius=1))
+    #ROI is region of interest with area having face inside it.
+    roi_gray = gray[y:y+h, x:x+w]
+    roi_color = img[y:y+h, x:x+w]
 
-            # Define the indexes for the left and right eyes based on the FaceMesh model
-            # Left eye landmarks: 33, 133, 160, 144, 163, 249
-            left_eye = [face_landmarks.landmark[33], face_landmarks.landmark[133], face_landmarks.landmark[160], 
-                        face_landmarks.landmark[144], face_landmarks.landmark[163], face_landmarks.landmark[249]]
-            # Right eye landmarks: 362, 263, 374, 390, 466, 469
-            right_eye = [face_landmarks.landmark[362], face_landmarks.landmark[263], face_landmarks.landmark[374], 
-                         face_landmarks.landmark[390], face_landmarks.landmark[466], face_landmarks.landmark[469]]
+    #Detect eyes in face
+    eyes = eye_cascade.detectMultiScale(roi_gray)
 
-            # Convert landmark points to pixel coordinates for drawing
-            h, w, _ = img.shape
-            left_eye_points = [(int(point.x * w), int(point.y * h)) for point in left_eye]
-            right_eye_points = [(int(point.x * w), int(point.y * h)) for point in right_eye]
+    for (ex,ey,ew,eh) in eyes:
+        cv.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
 
-            # Draw eye contours (optional)
-            cv.polylines(img, [np.array(left_eye_points)], isClosed=True, color=(0, 255, 0), thickness=1)
-            cv.polylines(img, [np.array(right_eye_points)], isClosed=True, color=(0, 255, 0), thickness=1)
-
-# Show the result image
 cv.imshow('Image', img)
 cv.waitKey(0)
 cv.destroyAllWindows()
